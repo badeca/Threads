@@ -6,12 +6,13 @@
 #define Buffer_Size 20
 int numberOfThreads = 5;
 
-//int blocked = 0;
+int blocked = 0;
+
+int winner = 0; // 0->sem vencedor, 1->hackers, 2->servidor
 
 int buffer = 0;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t fill = PTHREAD_COND_INITIALIZER;
-pthread_cond_t empty = PTHREAD_COND_INITIALIZER;
 pthread_cond_t no_winner = PTHREAD_COND_INITIALIZER;
 
 int *ip_requests; // vetor que mostra a quantidade de requisições por ip
@@ -57,6 +58,13 @@ int main() {
     pthread_join(consumer_threads[0], NULL);
     pthread_join(consumer_threads[1], NULL);
 
+    if(winner == 1)
+        printf("HACKERS TOPS\n");
+    else if(winner == 2)
+        printf("SERVIDOR TOPS\n");
+    else
+        printf("deu bugs\n");
+
     pthread_exit(NULL);
     return 0;
 }
@@ -92,36 +100,29 @@ void *consumer(void *threadid)
     {
         pthread_mutex_lock(&mutex);
 
-        while(buffer == 0)
+        if(buffer >= 0)
         {
-            int i;
-            int booleano = 0;
-            for(i=0; i<numberOfThreads; i++)
+            if(buffer > Buffer_Size)
             {
-                if(ip_requests[i] < 10)
-                    booleano = 1;
+                pthread_mutex_unlock(&mutex);
+                pthread_exit(NULL);
             }
-            if(booleano == 0) // todos as threads estão bloqueadas e o buffer é zero
+
+            if(buffer > 0)
             {
-                printf("SERVIDOR VENCEU\n");
-                //break;
-                exit(1);
+                buffer--;
+                printf("%d\n", buffer);
             }
-            pthread_cond_wait(&fill, &mutex);
+            
+            if(blocked == 1 && buffer <= 0)
+            {
+                winner = 2;
+                //printf("SERVIDOR VENCEU\n");
+                pthread_mutex_unlock(&mutex);
+                pthread_exit(NULL);
+            }
         }
 
-        if(buffer > Buffer_Size)
-        {
-            pthread_mutex_unlock(&mutex);
-            pthread_exit(NULL);
-        }
-
-        printf("consumidor aqui\n");
-
-        buffer--;
-        printf("%d\n", buffer);
-
-        pthread_cond_signal(&empty);
         pthread_mutex_unlock(&mutex);
     }
 
@@ -130,8 +131,6 @@ void *consumer(void *threadid)
 
 void *producer(void *threadid)
 {
-    int i;
-    int value;
     long int thread_id = *( (long *) threadid );
     while(1)
     {
@@ -144,7 +143,8 @@ void *producer(void *threadid)
 
         if(buffer > Buffer_Size)
         {
-            printf("HACKERS VENCERAM\n");
+            winner = 1;
+            //printf("HACKERS VENCERAM\n");
             pthread_mutex_unlock(&mutex);
             pthread_exit(NULL);
         }
@@ -155,11 +155,24 @@ void *producer(void *threadid)
         printf("%d\n", buffer);
 
         ip_requests[thread_id - 1]++;
-        printf("ip requests = %d, id = %ld\n", ip_requests[thread_id - 1], thread_id);
+        //printf("ip requests = %d, id = %ld\n", ip_requests[thread_id - 1], thread_id);
 
-        // vai bloquear no producer, já printo aqui 
         if(ip_requests[thread_id - 1] >= 10) 
         {
+            int i;
+            int booleano = 0;
+            for(i=0; i<numberOfThreads; i++)
+            {
+                if(ip_requests[i] < 10)
+                    booleano = 1;
+            }
+            if(booleano == 0) // todos as threads estão bloqueadas
+            {
+                blocked = 1;
+                //printf("SERVIDOR VENCEU\n");
+                //break;
+                //exit(1);
+            }
             printf("THREAD %ld BLOQUEADA\n", thread_id);
             pthread_cond_signal(&fill);
             pthread_mutex_unlock(&mutex);
