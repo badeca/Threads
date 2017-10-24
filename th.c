@@ -3,8 +3,8 @@
 #include <pthread.h>
 #include <errno.h>
 
-#define Buffer_Size 20
-int numberOfThreads = 5;
+#define Buffer_Size 100
+int numberOfThreads;
 
 int blocked = 0;
 
@@ -13,84 +13,77 @@ int winner = 0; // 0->sem vencedor, 1->hackers, 2->servidor
 int buffer = 0;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t fill = PTHREAD_COND_INITIALIZER;
-pthread_cond_t no_winner = PTHREAD_COND_INITIALIZER;
 
 int *ip_requests; // vetor que mostra a quantidade de requisições por ip
 
-void put();
 void *consumer(void *threadid);
 void *producer(void *threadid);
 
 int main() {
 
+    int counter = 4;
     pthread_t *threads;
     pthread_t consumer_threads[2];
+    int numbers[4] = {1,2,3,4};
     int i;
     int error;
     int **ids;
 
-    //scanf("%d", &numberOfThreads);
+    ip_requests = (int *) malloc(sizeof(int)); 
+    threads = (pthread_t*) malloc(sizeof(pthread_t));
+    ids = (int **) malloc(sizeof(int*));
 
-    ip_requests = (int *) calloc(numberOfThreads, sizeof(int)); // lembrar q o id das threads está com +1
-    threads = (pthread_t*) malloc(numberOfThreads*sizeof(pthread_t));
-    ids = (int **) malloc((numberOfThreads)*sizeof(int*));
+    while(counter > 0)
+    {
+        numberOfThreads = numbers[4 - counter];
+
+        ip_requests = (int *) realloc(ip_requests, numberOfThreads*sizeof(int)); // lembrar q o id das threads está com +1
+        threads = (pthread_t*) realloc(threads, numberOfThreads*sizeof(pthread_t));
+        ids = (int **) realloc(ids, numberOfThreads*sizeof(int*));
+        for(i=0; i<numberOfThreads; i++)
+        {
+            ip_requests[i] = 0;
+        }
+
+        for(i=0; i<numberOfThreads; i++)
+        {
+            ids[i] = (int*) realloc(ids[i], sizeof(int));
+            *ids[i] = i + 1; //-------------------------------------------------------^ ids vão de 1 a numberOfThreads
+            error = pthread_create(&threads[i], NULL, producer, (void *) ids[i]);
+
+            if(error)
+                exit(1);
+        }
+
+        for(i=0; i<2; i++)
+        {
+            error = pthread_create(&consumer_threads[i], NULL, consumer, NULL);
+
+            if(error)
+                exit(1);
+        }
+
+        for(i=0; i<numberOfThreads; i++)
+            pthread_join(threads[i], NULL);
+        pthread_join(consumer_threads[0], NULL);
+        pthread_join(consumer_threads[1], NULL);
+
+        if(winner == 1)
+            printf("HACKERS VENCERAM\n");
+        else if(winner == 2)
+            printf("SERVIDOR VENCEU\n");
+        else
+            printf("deu bugs\n");
+
+        blocked = 0;
+        winner = 0;
+        buffer = 0;
+
+        counter--;
+    }
     
-    for(i=0; i<numberOfThreads; i++)
-    {
-        ids[i] = (int*) malloc(sizeof(int));
-        *ids[i] = i + 1; //----------------------------------------------^
-        error = pthread_create(&threads[i], NULL, producer, (void *) ids[i]);
-
-        if(error)
-            exit(1);
-    }
-
-    for(i=0; i<2; i++)
-    {
-        error = pthread_create(&consumer_threads[i], NULL, consumer, NULL);
-
-        if(error)
-            exit(1);
-    }
-
-    for(i=0; i<numberOfThreads; i++)
-        pthread_join(threads[i], NULL);
-    pthread_join(consumer_threads[0], NULL);
-    pthread_join(consumer_threads[1], NULL);
-
-    if(winner == 1)
-        printf("HACKERS TOPS\n");
-    else if(winner == 2)
-        printf("SERVIDOR TOPS\n");
-    else
-        printf("deu bugs\n");
-
     pthread_exit(NULL);
     return 0;
-}
-
-void put(long int id, int *value) 
-{
-    if ( EDEADLK == pthread_mutex_lock(&mutex) ) {
-        printf("Deadlock put\n");
-        exit(1);
-    }
-
-    printf("produtor aqui\n");
-
-    buffer++;
-    printf("%d\n", buffer);
-
-    ip_requests[id - 1]++;
-    *value = ip_requests[id - 1];
-    printf("ip requests = %d, id = %ld\n", ip_requests[id - 1], id);
-
-    // vai bloquear no producer, já printo aqui 
-    if(ip_requests[id - 1] >= 10) 
-        printf("THREAD %ld BLOQUEADA\n", id);
-
-    pthread_cond_signal(&fill);
-    pthread_mutex_unlock(&mutex);
 }
 
 void *consumer(void *threadid)
@@ -111,7 +104,7 @@ void *consumer(void *threadid)
             if(buffer > 0)
             {
                 buffer--;
-                printf("%d\n", buffer);
+                printf("buffer = %d\n", buffer);
             }
             
             if(blocked == 1 && buffer <= 0)
@@ -136,11 +129,6 @@ void *producer(void *threadid)
     {
         pthread_mutex_lock(&mutex);
 
-        /*while(buffer == Buffer_Size)
-        {
-            pthread_cond_wait(&empty, &mutex);
-        }*/
-
         if(buffer > Buffer_Size)
         {
             winner = 1;
@@ -149,14 +137,12 @@ void *producer(void *threadid)
             pthread_exit(NULL);
         }
 
-        printf("produtor aqui\n");
-
         buffer++;
-        printf("%d\n", buffer);
+        printf("buffer = %d\n", buffer);
 
+        printf("oieeeee %ld\n", thread_id);
         ip_requests[thread_id - 1]++;
         //printf("ip requests = %d, id = %ld\n", ip_requests[thread_id - 1], thread_id);
-
         if(ip_requests[thread_id - 1] >= 10) 
         {
             int i;
@@ -169,9 +155,6 @@ void *producer(void *threadid)
             if(booleano == 0) // todos as threads estão bloqueadas
             {
                 blocked = 1;
-                //printf("SERVIDOR VENCEU\n");
-                //break;
-                //exit(1);
             }
             printf("THREAD %ld BLOQUEADA\n", thread_id);
             pthread_cond_signal(&fill);
