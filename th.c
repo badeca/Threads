@@ -14,7 +14,6 @@ pthread_mutex_t *mutexes;
 
 int *ip_requests; // vetor que mostra a quantidade de requisições por ip
 
-void get();
 void put();
 void *consumer(void *threadid);
 void *producer(void *threadid);
@@ -73,14 +72,14 @@ void put(long int id, int *value)
         exit(1);
     }
 
-    //printf("produtor aqui\n");
+    printf("produtor aqui\n");
 
     buffer++;
-    //printf("%d\n", buffer);
+    printf("%d\n", buffer);
 
     ip_requests[id - 1]++;
     *value = ip_requests[id - 1];
-    //printf("ip requests = %d, id = %ld\n", ip_requests[id - 1], id);
+    printf("ip requests = %d, id = %ld\n", ip_requests[id - 1], id);
 
     // vai bloquear no producer, já printo aqui 
     if(ip_requests[id - 1] >= 10) 
@@ -94,7 +93,35 @@ void *consumer(void *threadid)
 {
     int i;
     while(1)
-        get();
+    {
+        if ( EDEADLK == pthread_mutex_lock(&mutex) ) {
+            printf("Deadlock put\n");
+            exit(1);
+        }
+
+        while(buffer == 0)
+        {
+            int i;
+            int booleano = 0;
+            for(i=0; i<numberOfThreads; i++)
+            {
+                if(ip_requests[i] < 10)
+                    booleano = 1;
+            }
+            if(booleano == 0) // todos as threads estão bloqueadas e o buffer é zero
+            {
+                printf("SERVIDOR VENCEU\n");
+                exit(1);
+            }
+            pthread_cond_wait(&fill, &mutex);
+        }
+        printf("consumidor aqui\n");
+
+        buffer--;
+        printf("%d\n", buffer);
+
+        pthread_mutex_unlock(&mutex);
+    }
 
     pthread_exit(NULL);
 }
@@ -118,35 +145,4 @@ void *producer(void *threadid)
     }
 
     pthread_exit(NULL);
-}
-
-void get()
-{
-    if ( EDEADLK == pthread_mutex_lock(&mutex) ) {
-        printf("Deadlock put\n");
-        exit(1);
-    }
-
-    while(buffer == 0)
-    {
-        int i;
-        int booleano = 0;
-        for(i=0; i<numberOfThreads; i++)
-        {
-            if(ip_requests[i] < 10)
-                booleano = 1;
-        }
-        if(booleano == 0) // todos as threads estão bloqueadas e o buffer é zero
-        {
-            printf("SERVIDOR VENCEU\n");
-            exit(1);
-        }
-        pthread_cond_wait(&fill, &mutex);
-    }
-    //printf("consumidor aqui\n");
-
-    buffer--;
-    //printf("%d\n", buffer);
-
-    pthread_mutex_unlock(&mutex);
 }
