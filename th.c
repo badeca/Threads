@@ -140,7 +140,6 @@ void *producer(void *threadid)
         buffer++;
         printf("buffer = %d\n", buffer);
 
-        printf("oieeeee %ld\n", thread_id);
         ip_requests[thread_id - 1]++;
         //printf("ip requests = %d, id = %ld\n", ip_requests[thread_id - 1], thread_id);
         if(ip_requests[thread_id - 1] >= 10) 
