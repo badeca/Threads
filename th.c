@@ -6,8 +6,6 @@
 #define Buffer_Size 20
 int numberOfThreads = 5;
 
-int working = 1;
-
 int buffer = 0;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t fill = PTHREAD_COND_INITIALIZER;
