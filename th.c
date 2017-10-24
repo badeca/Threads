@@ -10,8 +10,6 @@ int buffer = 0;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t fill = PTHREAD_COND_INITIALIZER;
 
-pthread_mutex_t *mutexes;
-
 int *ip_requests; // vetor que mostra a quantidade de requisições por ip
 
 void put();
@@ -28,13 +26,9 @@ int main() {
 
     //scanf("%d", &numberOfThreads);
 
-    mutexes = (pthread_mutex_t *) malloc(numberOfThreads*sizeof(pthread_mutex_t));
     ip_requests = (int *) calloc(numberOfThreads, sizeof(int)); // lembrar q o id das threads está com +1
     threads = (pthread_t*) malloc(numberOfThreads*sizeof(pthread_t));
     ids = (int **) malloc((numberOfThreads)*sizeof(int*));
-
-    for(i=0; i<numberOfThreads; i++)
-       pthread_mutex_init(&mutexes[i], NULL);
     
     for(i=0; i<numberOfThreads; i++)
     {
@@ -59,8 +53,6 @@ int main() {
     pthread_join(consumer_threads[0], NULL);
     pthread_join(consumer_threads[1], NULL);
 
-    for(i=0; i<numberOfThreads; i++)
-       pthread_mutex_destroy(&mutexes[i]);
     pthread_exit(NULL);
     return 0;
 }
@@ -133,16 +125,13 @@ void *producer(void *threadid)
     long int thread_id = *( (long *) threadid );
     while(1)
     {
-        pthread_mutex_lock(&mutexes[thread_id - 1]);
         put(thread_id, &value);
         if(buffer == Buffer_Size + 1)
         {
             printf("HACKERS VENCERAM\n");
             exit(1);
         }
-        if(value < 10)
-            pthread_mutex_unlock(&mutexes[thread_id - 1]);
+        if(value >= 10)
+            pthread_exit(NULL);
     }
-
-    pthread_exit(NULL);
 }
