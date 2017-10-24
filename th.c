@@ -6,9 +6,13 @@
 #define Buffer_Size 20
 int numberOfThreads = 5;
 
+//int blocked = 0;
+
 int buffer = 0;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t fill = PTHREAD_COND_INITIALIZER;
+pthread_cond_t empty = PTHREAD_COND_INITIALIZER;
+pthread_cond_t no_winner = PTHREAD_COND_INITIALIZER;
 
 int *ip_requests; // vetor que mostra a quantidade de requisições por ip
 
@@ -86,10 +90,7 @@ void *consumer(void *threadid)
     int i;
     while(1)
     {
-        if ( EDEADLK == pthread_mutex_lock(&mutex) ) {
-            printf("Deadlock put\n");
-            exit(1);
-        }
+        pthread_mutex_lock(&mutex);
 
         while(buffer == 0)
         {
@@ -103,15 +104,24 @@ void *consumer(void *threadid)
             if(booleano == 0) // todos as threads estão bloqueadas e o buffer é zero
             {
                 printf("SERVIDOR VENCEU\n");
+                //break;
                 exit(1);
             }
             pthread_cond_wait(&fill, &mutex);
         }
+
+        if(buffer > Buffer_Size)
+        {
+            pthread_mutex_unlock(&mutex);
+            pthread_exit(NULL);
+        }
+
         printf("consumidor aqui\n");
 
         buffer--;
         printf("%d\n", buffer);
 
+        pthread_cond_signal(&empty);
         pthread_mutex_unlock(&mutex);
     }
 
@@ -125,13 +135,38 @@ void *producer(void *threadid)
     long int thread_id = *( (long *) threadid );
     while(1)
     {
-        put(thread_id, &value);
-        if(buffer == Buffer_Size + 1)
+        pthread_mutex_lock(&mutex);
+
+        /*while(buffer == Buffer_Size)
+        {
+            pthread_cond_wait(&empty, &mutex);
+        }*/
+
+        if(buffer > Buffer_Size)
         {
             printf("HACKERS VENCERAM\n");
-            exit(1);
-        }
-        if(value >= 10)
+            pthread_mutex_unlock(&mutex);
             pthread_exit(NULL);
+        }
+
+        printf("produtor aqui\n");
+
+        buffer++;
+        printf("%d\n", buffer);
+
+        ip_requests[thread_id - 1]++;
+        printf("ip requests = %d, id = %ld\n", ip_requests[thread_id - 1], thread_id);
+
+        // vai bloquear no producer, já printo aqui 
+        if(ip_requests[thread_id - 1] >= 10) 
+        {
+            printf("THREAD %ld BLOQUEADA\n", thread_id);
+            pthread_cond_signal(&fill);
+            pthread_mutex_unlock(&mutex);
+            pthread_exit(NULL);
+        }
+
+        pthread_cond_signal(&fill);
+        pthread_mutex_unlock(&mutex);
     }
 }
