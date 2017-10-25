@@ -91,38 +91,14 @@ void put(long int thread_id)
 {
     pthread_mutex_lock(&mutex);
 
-    //printf("produtor tops %ld\n", thread_id);
-
     if(buffer > Buffer_Size)
     {
-        //printf("dale\n");
         winner = 1; // hackers vencem
     }
     else
     {
-        //printf("to produzindo\n");
         buffer++; // soma o buffer
-        //printf("buffer = %d\n", buffer);
-
         ip_requests[thread_id - 1]++; // +1 request para o ip
-        /*if(ip_requests[thread_id - 1] >= 10)
-        {
-            int i;
-            int booleano = 0;
-            for(i=0; i<numberOfThreads; i++)
-            {
-                if(ip_requests[i] < 10) 
-                    booleano = 1;
-            }
-            if(booleano == 0) // todos as threads produtoras estão bloqueadas
-            {
-                // resolver isso
-                printf("oiiiiiiiiiiiiiiiiiiiiiiiiiiii\n");
-                blocked = 1;
-            }
-            printf("%ld thread bloqueada\n", thread_id);
-            blocked_threads[thread_id - 1] = 1; // thread atual bloqueada
-        }*/
     }
 
     pthread_mutex_unlock(&mutex);
@@ -131,8 +107,6 @@ void put(long int thread_id)
 void get()
 {
     pthread_mutex_lock(&mutex);
-
-    //printf("consumidor tops\n");
 
         if(buffer == 0) // não subtrai do buffer
         {
@@ -151,15 +125,12 @@ void get()
 
             if(numberOfBlockedThreads == numberOfThreads) // se buffer = 0 e todas threads produtoras estão bloqueadas
             {
-                //printf("eae\n");
                 winner = 2; //servidor vence
             }
         }
         else
         {
-            //printf("to consumindo\n");
             buffer--;
-            //printf("buffer = %d\n", buffer);
         }
 
     pthread_mutex_unlock(&mutex);
