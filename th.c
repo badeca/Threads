@@ -4,14 +4,14 @@
 #include <errno.h>
 
 #define Buffer_Size 100
-int numberOfThreads = 1;
+int numberOfThreads;
+int counter = 0;
 
 int winner = 0; // 0->sem vencedor, 1->hackers, 2->servidor
 int numberOfBlockedThreads = 0;
 int buffer = 0;
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t fill = PTHREAD_COND_INITIALIZER;
 
 int ip_requests[4]; // vetor que mostra a quantidade de requisições por ip
 
@@ -24,40 +24,41 @@ void put();
 
 int main() {
 
-    int counter = 0;
     float server_victories = 0;
     float hackers_victories = 0;
     float bugs = 0;
     int i;
     int error;
 
-    for(numberOfThreads = 1; numberOfThreads <= 2; numberOfThreads++)
+    for(numberOfThreads = 1; numberOfThreads <= 4; numberOfThreads++)
     {
-        for(counter = 0; counter < 100; counter++)
+        for(counter = 0; counter < 400; counter++)
         {
             pthread_t threads[4]; // 4 = máximo de threads
             int *ids[4]; // 4 = máximo de threads
             pthread_t consumer_threads[2]; // 2 = número de servers
 
+            for(i=0; i<2; i++) // criação das threads consumidoras
+            {
+                error = pthread_create(&consumer_threads[i], NULL, consumer, NULL);  
+                if(error)
+                    exit(1);
+            }
+
             for(i=0; i<numberOfThreads; i++)
             {
-                ids[i] = (int*) malloc(sizeof(int));
-                *ids[i] = i; 
+                ids[i] = (int*) malloc(sizeof(int)); 
+                *ids[i] = i;
                 error = pthread_create(&threads[i], NULL, producer, (void *) ids[i]);
 
                 if(error)
                     exit(1);
             }
 
-            for(i=0; i<2; i++)
-            {
-                error = pthread_create(&consumer_threads[i], NULL, consumer, NULL);                
-                if(error)
-                    exit(1);
-            }
-
             for(i=0; i<numberOfThreads; i++)
+            {
                 pthread_join(threads[i], NULL);
+            }
             pthread_join(consumer_threads[0], NULL);
             pthread_join(consumer_threads[1], NULL);
 
@@ -156,7 +157,7 @@ void *consumer(void *threadid)
 
 void *producer(void *threadid)
 {
-    long int thread_id = *( (long *) threadid );
+    int thread_id = *( (int *) threadid );
     while(winner == 0 && blocked_threads[thread_id] == 0) // enquanto não tem vencedor, e a thread atual não está bloqueada
     {
         put(thread_id);
