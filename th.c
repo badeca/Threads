@@ -18,7 +18,7 @@ int ip_requests[4]; // vetor que mostra a quantidade de requisições por ip
 void *consumer(void *threadid);
 void *producer(void *threadid);
 
-int blocked_threads[4];
+int blocked_threads[4]; // blocked_thread[i] = 1 -> thread i bloqueada
 
 void put();
 
@@ -45,7 +45,7 @@ int main() {
                     exit(1);
             }
 
-            for(i=0; i<numberOfThreads; i++)
+            for(i=0; i<numberOfThreads; i++) // criação das threads produtoras
             {
                 ids[i] = (int*) malloc(sizeof(int)); 
                 *ids[i] = i;
@@ -72,10 +72,11 @@ int main() {
             }
             else
             {
+                printf("deu bugs\n");
                 bugs++;
             }
 
-            //zerando os vetores de requests e threads bloqueadas
+            //zerando os vetores de requests e desbloqueando as threads
             for(i=0; i<numberOfThreads; i++)
             {
                 ip_requests[i] = 0;
@@ -86,11 +87,13 @@ int main() {
             numberOfBlockedThreads = 0;
             buffer = 0;
         }
+
+        printf("Servidor vs %d hacker(s)\n", numberOfThreads);
+        printf("Total de vitórias dos Hackers = %.0f\n", hackers_victories);
+        printf("Total de vitórias do Servidor = %.0f\n", server_victories);
     }
-
-
-    printf("%f %f %f\n", bugs, server_victories, hackers_victories);
-    
+    printf("Os Hackers venceram %.2f%% e perderam %.2f%% das batalhas.\n", (hackers_victories/1600)*100, (server_victories/1600)*100);
+    printf("O Servidor venceu %.2f%% e perdeu %.2f%% das batalhas.\n", (server_victories/1600)*100, (hackers_victories/1600)*100);
     pthread_exit(NULL);
     return 0;
 }
@@ -99,7 +102,7 @@ void put(long int thread_id)
 {
     pthread_mutex_lock(&mutex);
 
-    if(buffer > Buffer_Size)
+    if(buffer > Buffer_Size) // se o buffer passar de 100
     {
         winner = 1; // hackers vencem
     }
